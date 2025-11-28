@@ -70,9 +70,21 @@ def clean_data():
     df_pivot = df_pivot.sort_index()
     df_pivot = df_pivot.apply(pd.to_numeric, errors='coerce')
     
-    # Handle Missing Values (Interpolation)
+    # Handle Missing Values
+    # 1. For technology indicators that didn't exist in the past, fill initial NaNs with 0.
+    tech_indicators = ["Internet_Usage", "Mobile_Subscriptions"]
+    for col in tech_indicators:
+        if col in df_pivot.columns:
+            df_pivot[col] = df_pivot[col].fillna(0)
+
+    # 2. For other indicators, use linear interpolation (forward only to respect time).
+    # We avoid 'limit_direction=both' to prevent future data leaking into the past.
     print("Handling missing values (Interpolation)...")
-    df_clean = df_pivot.interpolate(method='linear', limit_direction='both')
+    df_clean = df_pivot.interpolate(method='linear', limit_direction='forward')
+    
+    # 3. Drop rows only if ALL values are missing (unlikely, but good cleanup)
+    # We removed the strict 'dropna(how='any')' because it was deleting the 1990s data 
+    # (likely due to missing Education/Health data in early years).
     df_clean = df_clean.dropna(how='all') 
 
     print(f"Saving processed data to {processed_path}...")
